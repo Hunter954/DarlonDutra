@@ -54,3 +54,16 @@ Como reforço, você também pode adicionar no Railway:
 ```env
 MISE_PYTHON_GITHUB_ATTESTATIONS=false
 ```
+
+
+## Apoio com Instagram
+
+A nova seção `Eu apoio` salva o @ do Instagram em uma tabela própria (`social_support`) e tenta buscar a foto pública do perfil. Como o Instagram pode bloquear ou alterar a página, existe fallback automático para avatar externo por username.
+
+Variável opcional no Railway:
+
+```env
+SOCIAL_SUPPORT_BASE_COUNT=4000
+```
+
+Ela define o número inicial exibido no contador de apoiadores. Os novos apoios entram somando em cima desse valor.

@@ -64,6 +64,49 @@
     </div>
   </section>
 
+  <section class="section social-proof" id="apoiadores">
+    <div class="social-proof-card">
+      <div class="social-proof-copy">
+        <span class="section-label">Eu apoio</span>
+        <h2>Mostre que você está com Darlon {{ campaign_number }}.</h2>
+        <p>Digite seu @ do Instagram e entre no mural de apoiadores da campanha.</p>
+      </div>
+      <form class="insta-support-form" id="instaSupportForm" autocomplete="off">
+        <label for="instagramSupport">Seu Instagram</label>
+        <div class="insta-field">
+          <span>@</span>
+          <input id="instagramSupport" name="instagram" placeholder="seuusuario" required maxlength="30">
+          <button class="btn primary" type="submit">Eu apoio</button>
+        </div>
+        <p class="insta-message" id="instaSupportMessage" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="supporter-strip">
+      <div class="supporter-counter">
+        <strong id="supporterCount">{{ '{:,}'.format(social_count).replace(',', '.') }}+</strong>
+        <span>apoiando essa caminhada</span>
+      </div>
+      <div class="supporter-marquee" aria-label="Apoiadores no Instagram">
+        <div class="supporter-track" id="supporterTrack">
+          {% for row in range(2) %}
+            {% for supporter in social_supporters %}
+              <div class="supporter-avatar" title="@{{ supporter.instagram }}">
+                <img src="{{ supporter.avatar_url }}" alt="@{{ supporter.instagram }}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.classList.add('no-photo'); this.remove();">
+                <span>@{{ supporter.instagram[:10] }}</span>
+              </div>
+            {% endfor %}
+          {% endfor %}
+          {% if not social_supporters %}
+            {% for item in ['darlondutra','parana.pop','missao','apoio1400','time.darlon','paranaforte','comdarlon','movimento1400'] %}
+              <div class="supporter-avatar no-photo" title="@{{ item }}"><span>@{{ item }}</span></div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="banner-cta">
     <div>
       <p class="eyebrow">Vote consciente</p>

@@ -11,6 +11,13 @@ class Supporter(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
+class SocialSupport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    instagram = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    avatar_url = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
 class GalleryImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)

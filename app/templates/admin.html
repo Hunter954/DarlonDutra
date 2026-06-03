@@ -16,6 +16,19 @@
         <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
         <button class="btn primary" type="submit">Enviar imagem</button>
       </form>
+      <h2>Apoios pelo Instagram</h2>
+      <div class="admin-list social-admin-list">
+        {% for s in social_supporters %}
+          <div>
+            <strong>@{{ s.instagram }}</strong>
+            <span>{{ s.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+            {% if s.avatar_url %}<p>{{ s.avatar_url }}</p>{% endif %}
+          </div>
+        {% else %}
+          <p>Nenhum apoio pelo Instagram ainda.</p>
+        {% endfor %}
+      </div>
+
       <h2>Apoios recentes</h2>
       <div class="admin-list">
         {% for s in supporters %}
