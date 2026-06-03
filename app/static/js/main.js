@@ -25,12 +25,7 @@ document.querySelectorAll('.section, .banner-cta, .card, .stat-card').forEach(el
 const instaForm = document.getElementById('instaSupportForm');
 const instaInput = document.getElementById('instagramSupport');
 const instaMessage = document.getElementById('instaSupportMessage');
-const supporterTracks = document.querySelectorAll('.supporter-track');
-const supporterCount = document.getElementById('supporterCount');
-
-function formatCount(value) {
-  return `${Number(value || 0).toLocaleString('pt-BR')}+`;
-}
+const supporterTracks = document.querySelectorAll('.supporter-logo-track');
 
 function setInstaMessage(text, type = '') {
   if (!instaMessage) return;
@@ -39,8 +34,8 @@ function setInstaMessage(text, type = '') {
 }
 
 function createSupporterAvatar(supporter) {
-  const item = document.createElement('div');
-  item.className = supporter.avatar_url ? 'supporter-avatar' : 'supporter-avatar no-photo';
+  const item = document.createElement('span');
+  item.className = supporter.avatar_url ? 'supporter-logo-pill' : 'supporter-logo-pill no-photo';
   item.title = `@${supporter.instagram}`;
 
   if (supporter.avatar_url) {
@@ -54,12 +49,10 @@ function createSupporterAvatar(supporter) {
       img.remove();
     };
     item.appendChild(img);
-  } else {
-    item.classList.add('no-photo');
   }
 
-  const label = document.createElement('span');
-  label.textContent = `@${supporter.instagram.slice(0, 10)}`;
+  const label = document.createElement('small');
+  label.textContent = `@${supporter.instagram.slice(0, 18)}`;
   item.appendChild(label);
   return item;
 }
@@ -77,7 +70,7 @@ if (instaForm && instaInput) {
 
     button.disabled = true;
     button.textContent = 'Confirmando...';
-    setInstaMessage('Validando seu apoio...', '');
+    setInstaMessage('Buscando sua foto e confirmando apoio...', '');
 
     try {
       const response = await fetch('/api/social-support', {
@@ -93,7 +86,6 @@ if (instaForm && instaInput) {
       }
 
       setInstaMessage(data.message, 'success');
-      if (supporterCount && data.count) supporterCount.textContent = formatCount(data.count);
 
       if (supporterTracks.length && data.supporter) {
         supporterTracks.forEach((track, index) => {

@@ -17,6 +17,7 @@ from .models import Supporter, SocialSupport, GalleryImage
 bp = Blueprint("main", __name__)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 INSTAGRAM_RE = re.compile(r"^[A-Za-z0-9._]{1,30}$")
+SESSION = requests.Session()
 
 
 def campaign_context():
@@ -32,13 +33,6 @@ def campaign_context():
     }
 
 
-def social_base_count():
-    try:
-        return max(0, int(os.getenv("SOCIAL_SUPPORT_BASE_COUNT", "4000")))
-    except ValueError:
-        return 4000
-
-
 def normalize_instagram(raw_value):
     username = (raw_value or "").strip()
     username = username.replace("https://www.instagram.com/", "")
@@ -47,20 +41,27 @@ def normalize_instagram(raw_value):
     return username.lower()
 
 
-def instagram_headers(username=None):
+def instagram_headers(username=None, accept_json=False):
     referer = "https://www.instagram.com/"
     if username:
         referer = f"https://www.instagram.com/{quote(username)}/"
-    return {
+    headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
         "Referer": referer,
+        "Origin": "https://www.instagram.com",
         "X-IG-App-ID": "936619743392459",
+        "X-ASBD-ID": "129477",
+        "X-Requested-With": "XMLHttpRequest",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors" if accept_json else "navigate",
+        "Sec-Fetch-Dest": "empty" if accept_json else "document",
     }
+    headers["Accept"] = "application/json,text/plain,*/*" if accept_json else "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+    return headers
 
 
 def clean_instagram_image_url(value):
@@ -71,13 +72,38 @@ def clean_instagram_image_url(value):
         value = json.loads(f'"{value}"')
     except Exception:
         pass
-    return value if value.startswith("http") else None
+    if not value.startswith("http"):
+        return None
+    return value
+
+
+def extract_avatar_from_json_blob(data):
+    if isinstance(data, dict):
+        for key in ("profile_pic_url_hd", "profile_pic_url", "hd_profile_pic_url_info"):
+            if key in data:
+                if isinstance(data[key], dict):
+                    candidate = clean_instagram_image_url(data[key].get("url"))
+                else:
+                    candidate = clean_instagram_image_url(data[key])
+                if candidate:
+                    return candidate
+        for value in data.values():
+            candidate = extract_avatar_from_json_blob(value)
+            if candidate:
+                return candidate
+    elif isinstance(data, list):
+        for item in data:
+            candidate = extract_avatar_from_json_blob(item)
+            if candidate:
+                return candidate
+    return None
 
 
 def find_avatar_url_in_html(page_html):
     patterns = [
         r'"profile_pic_url_hd"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"',
         r'"profile_pic_url"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"',
+        r'"hd_profile_pic_url_info"\s*:\s*\{[^}]*"url"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"',
         r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
     ]
@@ -85,6 +111,18 @@ def find_avatar_url_in_html(page_html):
         match = re.search(pattern, page_html)
         if match:
             avatar = clean_instagram_image_url(match.group(1))
+            if avatar:
+                return avatar
+
+    # Tenta decodificar blobs JSON embutidos no HTML novo do Instagram.
+    for pattern in (r'<script type="application/json"[^>]*>(.*?)</script>', r'window\._sharedData\s*=\s*(\{.*?\});'):
+        for match in re.finditer(pattern, page_html, flags=re.S):
+            raw = html.unescape(match.group(1))
+            try:
+                data = json.loads(raw)
+            except Exception:
+                continue
+            avatar = extract_avatar_from_json_blob(data)
             if avatar:
                 return avatar
     return None
@@ -104,7 +142,7 @@ def save_avatar_locally(username, avatar_url):
     headers.update({"Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"})
 
     try:
-        response = requests.get(avatar_url, headers=headers, timeout=10, stream=True, allow_redirects=True)
+        response = SESSION.get(avatar_url, headers=headers, timeout=12, stream=True, allow_redirects=True)
         content_type = response.headers.get("Content-Type", "").lower()
         if not response.ok or "image" not in content_type:
             return None
@@ -126,6 +164,7 @@ def save_avatar_locally(username, avatar_url):
                     continue
                 downloaded += len(chunk)
                 if downloaded > 3 * 1024 * 1024:
+                    absolute_path.unlink(missing_ok=True)
                     return None
                 file.write(chunk)
 
@@ -139,37 +178,49 @@ def save_avatar_locally(username, avatar_url):
 
 
 def scrape_instagram_avatar(username):
-    """Tenta puxar a foto pública do Instagram e salvar localmente.
+    """Tenta puxar foto pública do Instagram e salvar localmente.
 
-    É uma raspagem não oficial: pode falhar se o Instagram bloquear, alterar a página
-    ou exigir login. Quando falha, o site usa avatar com @ como fallback.
+    Raspagem não oficial: pode falhar caso o Instagram bloqueie a requisição,
+    altere o HTML ou exija login. Quando falha, o site mostra o fallback com @.
     """
+    # Fallback especial para o perfil principal da campanha: evita o mural abrir com @ seco.
+    if username in {"darlondutra", "darlon.dutra"}:
+        return url_for("static", filename="assets/DARLON-perfil.png")
+
     avatar_url = None
+    urls = [
+        f"https://www.instagram.com/api/v1/users/web_profile_info/?username={quote(username)}",
+        f"https://i.instagram.com/api/v1/users/web_profile_info/?username={quote(username)}",
+        f"https://www.instagram.com/{quote(username)}/?__a=1&__d=dis",
+    ]
 
-    # 1) Endpoint público usado pelo Instagram Web. Costuma retornar profile_pic_url_hd.
-    api_url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={quote(username)}"
-    try:
-        response = requests.get(api_url, headers=instagram_headers(username), timeout=8)
-        if response.ok:
-            payload = response.json()
-            user = (payload.get("data") or {}).get("user") or {}
-            avatar_url = clean_instagram_image_url(user.get("profile_pic_url_hd") or user.get("profile_pic_url"))
-    except (requests.RequestException, ValueError):
-        avatar_url = None
+    for api_url in urls:
+        try:
+            response = SESSION.get(api_url, headers=instagram_headers(username, accept_json=True), timeout=10)
+            if response.ok:
+                try:
+                    payload = response.json()
+                except ValueError:
+                    payload = None
+                if payload:
+                    avatar_url = extract_avatar_from_json_blob(payload)
+                    if avatar_url:
+                        break
+        except requests.RequestException:
+            continue
 
-    # 2) Fallback: raspa og:image/profile_pic_url do HTML público do perfil.
     if not avatar_url:
         profile_url = f"https://www.instagram.com/{quote(username)}/"
         try:
-            response = requests.get(profile_url, headers=instagram_headers(username), timeout=8)
+            response = SESSION.get(profile_url, headers=instagram_headers(username), timeout=10)
             if response.ok:
                 avatar_url = find_avatar_url_in_html(response.text)
         except requests.RequestException:
             avatar_url = None
 
-    # 3) Baixa para o volume local; isso evita a bolinha quebrar por hotlink/referrer.
     local_avatar = save_avatar_locally(username, avatar_url)
     return local_avatar or ""
+
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -178,13 +229,11 @@ def allowed_file(filename):
 @bp.route("/")
 def index():
     gallery = GalleryImage.query.order_by(GalleryImage.created_at.desc()).limit(9).all()
-    social_supporters = SocialSupport.query.order_by(SocialSupport.created_at.desc()).limit(70).all()
-    social_count = social_base_count() + SocialSupport.query.count()
+    social_supporters = SocialSupport.query.order_by(SocialSupport.created_at.desc()).limit(90).all()
     return render_template(
         "index.html",
         gallery=gallery,
         social_supporters=social_supporters,
-        social_count=social_count,
         **campaign_context(),
     )
 
@@ -218,8 +267,7 @@ def social_support():
 
     existing = SocialSupport.query.filter_by(instagram=username).first()
     if existing:
-        # Se o registro antigo ficou sem foto, tenta atualizar com a raspagem nova.
-        if not existing.avatar_url or not str(existing.avatar_url).startswith("/uploads/"):
+        if not existing.avatar_url or not str(existing.avatar_url).startswith(("/uploads/", "/static/")):
             refreshed_avatar = scrape_instagram_avatar(username)
             if refreshed_avatar:
                 existing.avatar_url = refreshed_avatar
@@ -227,9 +275,8 @@ def social_support():
         return jsonify(
             ok=True,
             already=True,
-            message="Esse @ já está no time de apoiadores.",
+            message="Esse @ já está no mural de apoiadores.",
             supporter={"instagram": existing.instagram, "avatar_url": existing.avatar_url},
-            count=social_base_count() + SocialSupport.query.count(),
         )
 
     avatar_url = scrape_instagram_avatar(username)
@@ -243,17 +290,15 @@ def social_support():
         return jsonify(
             ok=True,
             already=True,
-            message="Esse @ já está no time de apoiadores.",
+            message="Esse @ já está no mural de apoiadores.",
             supporter={"instagram": supporter.instagram, "avatar_url": supporter.avatar_url},
-            count=social_base_count() + SocialSupport.query.count(),
         )
 
     return jsonify(
         ok=True,
         already=False,
-        message="Apoio confirmado. Agora você faz parte desse movimento!",
+        message="Apoio confirmado. Sua bolinha entrou no mural!",
         supporter={"instagram": supporter.instagram, "avatar_url": supporter.avatar_url},
-        count=social_base_count() + SocialSupport.query.count(),
     )
 
 
