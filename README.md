@@ -44,3 +44,13 @@ PARANA_POP_INSTAGRAM=https://www.instagram.com/parana.pop/
 ```
 
 No Railway, o nome exato da referência do Postgres pode variar. Se a variável automática já vier como `DATABASE_URL`, use ela diretamente.
+
+## Correção Railway / Railpack
+
+Se o build falhar com `No GitHub artifact attestations found for python@3.11.9`, este projeto já inclui `mise.toml` desativando a verificação de attestation do Python no Railpack.
+
+Como reforço, você também pode adicionar no Railway:
+
+```env
+MISE_PYTHON_GITHUB_ATTESTATIONS=false
+```
