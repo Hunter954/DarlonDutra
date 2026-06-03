@@ -1,5 +1,7 @@
 import os
 import re
+import json
+import html
 from uuid import uuid4
 from pathlib import Path
 from urllib.parse import quote
@@ -45,34 +47,129 @@ def normalize_instagram(raw_value):
     return username.lower()
 
 
-def scrape_instagram_avatar(username):
-    """Busca uma imagem pública do perfil de forma simples e com fallback.
-
-    Instagram pode bloquear/alterar a página a qualquer momento. Por isso,
-    quando não encontra og:image, usamos um avatar externo por username.
-    """
-    profile_url = f"https://www.instagram.com/{quote(username)}/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+def instagram_headers(username=None):
+    referer = "https://www.instagram.com/"
+    if username:
+        referer = f"https://www.instagram.com/{quote(username)}/"
+    return {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": referer,
+        "X-IG-App-ID": "936619743392459",
     }
+
+
+def clean_instagram_image_url(value):
+    if not value:
+        return None
+    value = html.unescape(str(value)).replace("\\/", "/")
     try:
-        response = requests.get(profile_url, headers=headers, timeout=7)
-        if response.ok:
-            html = response.text
-            match = re.search(r'<meta[^>]+property=["\\\']og:image["\\\'][^>]+content=["\\\']([^"\\\']+)', html)
-            if not match:
-                match = re.search(r'<meta[^>]+content=["\\\']([^"\\\']+)["\\\'][^>]+property=["\\\']og:image["\\\']', html)
-            if match:
-                avatar = match.group(1).replace("&amp;", "&")
-                if avatar.startswith("http"):
-                    return avatar
-    except requests.RequestException:
+        value = json.loads(f'"{value}"')
+    except Exception:
         pass
+    return value if value.startswith("http") else None
 
-    return f"https://unavatar.io/instagram/{quote(username)}"
 
+def find_avatar_url_in_html(page_html):
+    patterns = [
+        r'"profile_pic_url_hd"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"',
+        r'"profile_pic_url"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"',
+        r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, page_html)
+        if match:
+            avatar = clean_instagram_image_url(match.group(1))
+            if avatar:
+                return avatar
+    return None
+
+
+def save_avatar_locally(username, avatar_url):
+    """Baixa a foto para o volume/upload local para evitar bloqueio de hotlink."""
+    if not avatar_url:
+        return None
+
+    safe_username = re.sub(r"[^a-z0-9._-]", "", username.lower())[:30] or uuid4().hex
+    relative_folder = Path("supporters")
+    absolute_folder = Path(current_app.config["UPLOAD_FOLDER"]) / relative_folder
+    absolute_folder.mkdir(parents=True, exist_ok=True)
+
+    headers = instagram_headers(username)
+    headers.update({"Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"})
+
+    try:
+        response = requests.get(avatar_url, headers=headers, timeout=10, stream=True, allow_redirects=True)
+        content_type = response.headers.get("Content-Type", "").lower()
+        if not response.ok or "image" not in content_type:
+            return None
+
+        ext = "jpg"
+        if "png" in content_type:
+            ext = "png"
+        elif "webp" in content_type:
+            ext = "webp"
+
+        filename = f"{safe_username}-{uuid4().hex[:8]}.{ext}"
+        relative_path = relative_folder / filename
+        absolute_path = Path(current_app.config["UPLOAD_FOLDER"]) / relative_path
+
+        with absolute_path.open("wb") as file:
+            downloaded = 0
+            for chunk in response.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                downloaded += len(chunk)
+                if downloaded > 3 * 1024 * 1024:
+                    return None
+                file.write(chunk)
+
+        if absolute_path.stat().st_size < 300:
+            absolute_path.unlink(missing_ok=True)
+            return None
+
+        return url_for("main.uploads", filename=str(relative_path).replace("\\", "/"))
+    except requests.RequestException:
+        return None
+
+
+def scrape_instagram_avatar(username):
+    """Tenta puxar a foto pública do Instagram e salvar localmente.
+
+    É uma raspagem não oficial: pode falhar se o Instagram bloquear, alterar a página
+    ou exigir login. Quando falha, o site usa avatar com @ como fallback.
+    """
+    avatar_url = None
+
+    # 1) Endpoint público usado pelo Instagram Web. Costuma retornar profile_pic_url_hd.
+    api_url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={quote(username)}"
+    try:
+        response = requests.get(api_url, headers=instagram_headers(username), timeout=8)
+        if response.ok:
+            payload = response.json()
+            user = (payload.get("data") or {}).get("user") or {}
+            avatar_url = clean_instagram_image_url(user.get("profile_pic_url_hd") or user.get("profile_pic_url"))
+    except (requests.RequestException, ValueError):
+        avatar_url = None
+
+    # 2) Fallback: raspa og:image/profile_pic_url do HTML público do perfil.
+    if not avatar_url:
+        profile_url = f"https://www.instagram.com/{quote(username)}/"
+        try:
+            response = requests.get(profile_url, headers=instagram_headers(username), timeout=8)
+            if response.ok:
+                avatar_url = find_avatar_url_in_html(response.text)
+        except requests.RequestException:
+            avatar_url = None
+
+    # 3) Baixa para o volume local; isso evita a bolinha quebrar por hotlink/referrer.
+    local_avatar = save_avatar_locally(username, avatar_url)
+    return local_avatar or ""
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -121,6 +218,12 @@ def social_support():
 
     existing = SocialSupport.query.filter_by(instagram=username).first()
     if existing:
+        # Se o registro antigo ficou sem foto, tenta atualizar com a raspagem nova.
+        if not existing.avatar_url or not str(existing.avatar_url).startswith("/uploads/"):
+            refreshed_avatar = scrape_instagram_avatar(username)
+            if refreshed_avatar:
+                existing.avatar_url = refreshed_avatar
+                db.session.commit()
         return jsonify(
             ok=True,
             already=True,

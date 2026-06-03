@@ -25,7 +25,7 @@ document.querySelectorAll('.section, .banner-cta, .card, .stat-card').forEach(el
 const instaForm = document.getElementById('instaSupportForm');
 const instaInput = document.getElementById('instagramSupport');
 const instaMessage = document.getElementById('instaSupportMessage');
-const supporterTrack = document.getElementById('supporterTrack');
+const supporterTracks = document.querySelectorAll('.supporter-track');
 const supporterCount = document.getElementById('supporterCount');
 
 function formatCount(value) {
@@ -40,7 +40,7 @@ function setInstaMessage(text, type = '') {
 
 function createSupporterAvatar(supporter) {
   const item = document.createElement('div');
-  item.className = 'supporter-avatar';
+  item.className = supporter.avatar_url ? 'supporter-avatar' : 'supporter-avatar no-photo';
   item.title = `@${supporter.instagram}`;
 
   if (supporter.avatar_url) {
@@ -95,11 +95,18 @@ if (instaForm && instaInput) {
       setInstaMessage(data.message, 'success');
       if (supporterCount && data.count) supporterCount.textContent = formatCount(data.count);
 
-      if (supporterTrack && data.supporter) {
-        const avatarA = createSupporterAvatar(data.supporter);
-        const avatarB = createSupporterAvatar(data.supporter);
-        supporterTrack.prepend(avatarA);
-        supporterTrack.appendChild(avatarB);
+      if (supporterTracks.length && data.supporter) {
+        supporterTracks.forEach((track, index) => {
+          const avatarA = createSupporterAvatar(data.supporter);
+          const avatarB = createSupporterAvatar(data.supporter);
+          if (index % 2 === 0) {
+            track.prepend(avatarA);
+            track.appendChild(avatarB);
+          } else {
+            track.appendChild(avatarA);
+            track.prepend(avatarB);
+          }
+        });
       }
 
       instaInput.value = '';
