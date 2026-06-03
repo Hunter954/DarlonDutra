@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="site-header">
+  <a class="brand" href="#top" aria-label="Início">
+    <img src="{{ url_for('static', filename='assets/PARTIDO.png') }}" alt="Partido Missão">
+    <span>{{ candidate_name }}</span>
+  </a>
+  <nav>
+    <a href="#historia">História</a>
+    <a href="#bandeiras">Bandeiras</a>
+    <a href="#galeria">Galeria</a>
+    <a class="nav-cta" href="#apoio">Apoiar</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-copy reveal">
+      <p class="eyebrow">{{ candidate_role }}</p>
+      <h1><span>Darlon</span><strong>Dutra</strong></h1>
+      <div class="number-box">{{ campaign_number }}</div>
+      <p class="hero-text">Uma campanha feita com coragem, presença e compromisso com quem quer ver o Paraná mais forte em Brasília.</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="#apoio">Quero apoiar</a>
+        <a class="btn ghost" href="{{ instagram_url }}" target="_blank" rel="noopener">Instagram</a>
+      </div>
+    </div>
+    <div class="hero-person reveal-person">
+      <img src="{{ url_for('static', filename='assets/DARLON-perfil.png') }}" alt="{{ candidate_name }}">
+    </div>
+    <div class="legal-line">CNPJ DO CANDIDATO: {{ campaign_cnpj }}</div>
+  </section>
+
+  <section class="section intro" id="historia">
+    <div class="section-label">Quem é</div>
+    <div class="intro-grid">
+      <div>
+        <h2>Comunicação, atitude e presença pública.</h2>
+      </div>
+      <div>
+        <p>Darlon Dutra construiu sua trajetória com atuação em comunicação, projetos digitais e diálogo direto com a população. Agora, a campanha para deputado federal nasce com uma identidade forte: preto, amarelo e branco, número {{ campaign_number }} e uma mensagem clara de representação.</p>
+        <p>Este site foi preparado para apresentar propostas, registrar apoios e concentrar os canais oficiais da campanha.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section stats">
+    <div class="stat-card"><strong>{{ campaign_number }}</strong><span>Número de campanha</span></div>
+    <div class="stat-card"><strong>PR</strong><span>Voz do Paraná</span></div>
+    <div class="stat-card"><strong>Pop</strong><span>Comunicação próxima</span></div>
+  </section>
+
+  <section class="section" id="bandeiras">
+    <div class="section-head">
+      <span class="section-label">Bandeiras</span>
+      <h2>Um mandato para transformar presença em resultado.</h2>
+    </div>
+    <div class="cards">
+      <article class="card"><span>01</span><h3>Desenvolvimento regional</h3><p>Defesa de projetos que fortaleçam cidades, empreendedores e oportunidades no Paraná.</p></article>
+      <article class="card"><span>02</span><h3>Comunicação transparente</h3><p>Mandato com prestação de contas, participação popular e linguagem direta.</p></article>
+      <article class="card"><span>03</span><h3>Juventude e inovação</h3><p>Incentivo à tecnologia, qualificação profissional e novas economias.</p></article>
+      <article class="card"><span>04</span><h3>Família e comunidade</h3><p>Políticas que valorizem cuidado, segurança e dignidade no dia a dia das pessoas.</p></article>
+    </div>
+  </section>
+
+  <section class="banner-cta">
+    <div>
+      <p class="eyebrow">Vote consciente</p>
+      <h2>Para deputado federal, confirme: {{ campaign_number }}.</h2>
+      <p>Compartilhe a campanha, converse com sua família e acompanhe os canais oficiais.</p>
+    </div>
+    <a class="btn primary dark" href="#apoio">Entrar no time</a>
+  </section>
+
+  <section class="section gallery" id="galeria">
+    <div class="section-head">
+      <span class="section-label">Campanha</span>
+      <h2>Galeria de imagens</h2>
+    </div>
+    <div class="gallery-grid">
+      {% if gallery %}
+        {% for image in gallery %}
+          <figure><img src="{{ url_for('main.uploads', filename=image.filename) }}" alt="{{ image.title or 'Imagem da campanha' }}"><figcaption>{{ image.title }}</figcaption></figure>
+        {% endfor %}
+      {% else %}
+        <figure><img src="{{ url_for('static', filename='assets/background.png') }}" alt="Identidade visual da campanha"><figcaption>Identidade visual da campanha</figcaption></figure>
+        <figure><img src="{{ url_for('static', filename='assets/DARLON-perfil.png') }}" alt="Foto de perfil"><figcaption>Perfil oficial</figcaption></figure>
+        <figure><img src="{{ url_for('static', filename='assets/PARTIDO.png') }}" alt="Logo do partido"><figcaption>Partido Missão</figcaption></figure>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="section support" id="apoio">
+    <div class="support-copy">
+      <span class="section-label">Apoio</span>
+      <h2>Entre para essa caminhada.</h2>
+      <p>Registre seu apoio, receba materiais da campanha e ajude a levar a mensagem do Darlon para mais pessoas.</p>
+      <div class="socials">
+        <a href="{{ instagram_url }}" target="_blank" rel="noopener">@darlondutra</a>
+        <a href="{{ parana_pop_url }}" target="_blank" rel="noopener">Paraná Pop</a>
+        <a href="{{ parana_pop_instagram }}" target="_blank" rel="noopener">@parana.pop</a>
+      </div>
+    </div>
+    <form class="support-form" method="post" action="{{ url_for('main.apoio') }}">
+      <label>Nome completo<input name="name" placeholder="Seu nome" required></label>
+      <label>WhatsApp<input name="phone" placeholder="(00) 00000-0000"></label>
+      <label>Bairro / cidade<input name="neighborhood" placeholder="Onde você mora?"></label>
+      <label>Mensagem<textarea name="message" rows="4" placeholder="Deixe sua mensagem de apoio"></textarea></label>
+      <button class="btn primary full" type="submit">Confirmar apoio</button>
+    </form>
+  </section>
+</main>
+
+<footer class="footer">
+  <img src="{{ url_for('static', filename='assets/PARTIDO.png') }}" alt="Partido Missão">
+  <p>{{ candidate_name }} {{ campaign_number }} • {{ legal_notice }}</p>
+  <p>CNPJ DO CANDIDATO: {{ campaign_cnpj }}</p>
+</footer>
+{% endblock %}

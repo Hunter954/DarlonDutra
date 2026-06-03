@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-page">
+  <section class="admin-card">
+    <h1>Painel da campanha</h1>
+    {% if not authenticated %}
+      <p>Digite a senha definida em ADMIN_PASSWORD para acessar.</p>
+      <form method="get">
+        <input name="key" type="password" placeholder="Senha admin" required>
+        <button class="btn primary" type="submit">Entrar</button>
+      </form>
+    {% else %}
+      <form class="upload-form" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="key" value="{{ request.args.get('key') }}">
+        <input name="title" placeholder="Título da imagem">
+        <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
+        <button class="btn primary" type="submit">Enviar imagem</button>
+      </form>
+      <h2>Apoios recentes</h2>
+      <div class="admin-list">
+        {% for s in supporters %}
+          <div><strong>{{ s.name }}</strong><span>{{ s.phone }} • {{ s.neighborhood }}</span><p>{{ s.message }}</p></div>
+        {% else %}
+          <p>Nenhum apoio registrado ainda.</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
