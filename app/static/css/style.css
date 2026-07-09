@@ -297,3 +297,23 @@
   .pre-hero-copy h1{font-size:clamp(42px,13.5vw,64px)}
   .pre-hero-person{width:min(96vw,390px);left:45%;bottom:0}
 }
+
+
+/* ===== Mobile rescue v4 ===== */
+@media(max-width:768px){
+  .pre-home,.pre-hero{min-height:100svh}
+  .pre-hero-bg{background-position:46% 50%;transform:scale(1.08)}
+  .pre-hero-copy{left:50%;top:18px;transform:translateX(-50%);width:calc(100vw - 32px);max-width:420px;align-items:center;text-align:center}
+  .pre-hero-kicker{justify-content:center;flex-wrap:wrap;max-width:100%;margin:0 0 8px 0;font-size:clamp(11px,3.5vw,15px);line-height:1.04;gap:.08em .22em;letter-spacing:-.01em;white-space:normal}
+  .pre-hero-copy h1{width:100%;font-size:clamp(44px,14vw,70px);line-height:.84;letter-spacing:-.05em}
+  .pre-hero-person{left:50%;transform:translateX(-50%);width:min(86vw,380px);bottom:0}
+}
+
+@media(max-width:480px){
+  .pre-home,.pre-hero{min-height:100svh}
+  .pre-hero-bg{background-position:47% 50%;transform:scale(1.1)}
+  .pre-hero-copy{top:14px;width:calc(100vw - 24px);max-width:400px}
+  .pre-hero-kicker{font-size:clamp(10px,3.2vw,13px);gap:.06em .18em}
+  .pre-hero-copy h1{font-size:clamp(40px,13.2vw,60px);line-height:.86}
+  .pre-hero-person{width:min(88vw,350px);left:52%;bottom:0}
+}
