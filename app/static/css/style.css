@@ -317,3 +317,61 @@
   .pre-hero-copy h1{font-size:clamp(40px,13.2vw,60px);line-height:.86}
   .pre-hero-person{width:min(88vw,350px);left:52%;bottom:0}
 }
+
+
+/* ===== Mobile rescue v5: puxar tudo mais para a esquerda ===== */
+@media(max-width:768px){
+  .pre-hero-bg{background-position:42% 50%;transform:scale(1.1)}
+  .pre-hero-copy{
+    top:16px;
+    left:16px;
+    right:16px;
+    width:auto;
+    max-width:none;
+    transform:none;
+    align-items:flex-start;
+    text-align:left;
+  }
+  .pre-hero-kicker{
+    justify-content:flex-start;
+    max-width:100%;
+    margin:0 0 8px 0;
+    font-size:clamp(10px,3.3vw,14px);
+    gap:.06em .18em;
+    white-space:normal;
+  }
+  .pre-hero-copy h1{
+    width:100%;
+    font-size:clamp(38px,12.2vw,62px);
+    line-height:.86;
+    letter-spacing:-.045em;
+  }
+  .pre-hero-person{
+    left:42%;
+    width:min(96vw,390px);
+    transform:translateX(-50%);
+    bottom:0;
+  }
+}
+
+@media(max-width:480px){
+  .pre-hero-bg{background-position:40% 50%;transform:scale(1.12)}
+  .pre-hero-copy{
+    top:12px;
+    left:12px;
+    right:12px;
+  }
+  .pre-hero-kicker{
+    font-size:clamp(10px,3.2vw,12px);
+    gap:.05em .16em;
+  }
+  .pre-hero-copy h1{
+    font-size:clamp(34px,11.8vw,54px);
+    line-height:.88;
+  }
+  .pre-hero-person{
+    left:40%;
+    width:min(98vw,360px);
+    bottom:0;
+  }
+}
