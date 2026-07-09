@@ -8,8 +8,17 @@
       <img src="{{ url_for('static', filename='assets/DARLON-perfil.png') }}" alt="{{ candidate_name }}">
     </div>
     <div class="pre-hero-copy reveal">
-      <p>PRÉ CANDIDATO A DEPUTADO FEDERAL</p>
-      <h1><span>{{ candidate_first_name }}</span><strong>{{ candidate_last_name }}</strong></h1>
+      <div class="pre-hero-kicker" aria-label="PRÉ CANDIDATO A DEPUTADO FEDERAL">
+        <span>PRÉ</span>
+        <span>CANDIDATO</span>
+        <span>A</span>
+        <span>DEPUTADO</span>
+        <span>FEDERAL</span>
+      </div>
+      <h1>
+        <span class="line">{{ candidate_first_name }}</span>
+        <strong class="line">{{ candidate_last_name }}</strong>
+      </h1>
     </div>
   </section>
 </main>
