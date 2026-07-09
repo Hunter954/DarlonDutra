@@ -10,8 +10,27 @@
         <button class="btn primary" type="submit">Entrar</button>
       </form>
     {% else %}
+
+      <div class="admin-mode-card">
+        <div>
+          <h2>Versão da home</h2>
+          <p>Use a versão pré-campanha enquanto o período eleitoral não estiver liberado. Quando quiser voltar para a home oficial do período eleitoral, desabilite abaixo.</p>
+          <strong>Status atual: {{ 'Pré-campanha ativa' if pre_campaign_home_enabled else 'Home oficial eleitoral ativa' }}</strong>
+        </div>
+        <form method="post" class="mode-form">
+          <input type="hidden" name="key" value="{{ request.args.get('key') }}">
+          <input type="hidden" name="action" value="toggle_pre_home">
+          <label class="switch-row">
+            <input type="checkbox" name="pre_campaign_home_enabled" value="1" {% if pre_campaign_home_enabled %}checked{% endif %}>
+            <span>Ativar versão pré-campanha</span>
+          </label>
+          <button class="btn primary" type="submit">Salvar versão da home</button>
+        </form>
+      </div>
+
       <form class="upload-form" method="post" enctype="multipart/form-data">
         <input type="hidden" name="key" value="{{ request.args.get('key') }}">
+        <input type="hidden" name="action" value="upload_gallery">
         <input name="title" placeholder="Título da imagem">
         <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
         <button class="btn primary" type="submit">Enviar imagem</button>

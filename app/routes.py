@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 
 from . import db
-from .models import Supporter, SocialSupport, GalleryImage
+from .models import Supporter, SocialSupport, GalleryImage, CampaignSetting
 
 bp = Blueprint("main", __name__)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
@@ -20,9 +20,36 @@ INSTAGRAM_RE = re.compile(r"^[A-Za-z0-9._]{1,30}$")
 SESSION = requests.Session()
 
 
+def truthy(value):
+    return str(value or "").strip().lower() in {"1", "true", "on", "yes", "sim", "ativo"}
+
+
+def get_campaign_setting(key, default=None):
+    setting = CampaignSetting.query.filter_by(key=key).first()
+    return setting.value if setting else default
+
+
+def set_campaign_setting(key, value):
+    setting = CampaignSetting.query.filter_by(key=key).first()
+    if setting:
+        setting.value = value
+    else:
+        db.session.add(CampaignSetting(key=key, value=value))
+    db.session.commit()
+
+
+def is_pre_campaign_home_enabled():
+    default_value = os.getenv("PRE_CAMPAIGN_HOME_ENABLED", "1")
+    return truthy(get_campaign_setting("pre_campaign_home_enabled", default_value))
+
+
 def campaign_context():
+    candidate_name = os.getenv("CANDIDATE_NAME", "Darlon Dutra")
+    parts = candidate_name.split()
     return {
-        "candidate_name": os.getenv("CANDIDATE_NAME", "Darlon Dutra"),
+        "candidate_name": candidate_name,
+        "candidate_first_name": parts[0] if parts else candidate_name,
+        "candidate_last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
         "candidate_role": os.getenv("CANDIDATE_ROLE", "Deputado Federal"),
         "campaign_number": os.getenv("CAMPAIGN_NUMBER", "1400"),
         "campaign_cnpj": os.getenv("CAMPAIGN_CNPJ", "00.000.000/0000-00"),
@@ -228,12 +255,19 @@ def allowed_file(filename):
 
 @bp.route("/")
 def index():
-    gallery = GalleryImage.query.order_by(GalleryImage.created_at.desc()).limit(9).all()
-    social_supporters = SocialSupport.query.order_by(SocialSupport.created_at.desc()).limit(90).all()
+    pre_campaign_home_enabled = is_pre_campaign_home_enabled()
+    gallery = []
+    social_supporters = []
+
+    if not pre_campaign_home_enabled:
+        gallery = GalleryImage.query.order_by(GalleryImage.created_at.desc()).limit(9).all()
+        social_supporters = SocialSupport.query.order_by(SocialSupport.created_at.desc()).limit(90).all()
+
     return render_template(
         "index.html",
         gallery=gallery,
         social_supporters=social_supporters,
+        pre_campaign_home_enabled=pre_campaign_home_enabled,
         **campaign_context(),
     )
 
@@ -308,6 +342,17 @@ def admin():
     authenticated = request.args.get("key") == admin_password or request.form.get("key") == admin_password
 
     if request.method == "POST" and authenticated:
+        action = request.form.get("action", "upload_gallery")
+
+        if action == "toggle_pre_home":
+            enabled = "1" if request.form.get("pre_campaign_home_enabled") == "1" else "0"
+            set_campaign_setting("pre_campaign_home_enabled", enabled)
+            if enabled == "1":
+                flash("Versão pré-campanha ativada na home.", "success")
+            else:
+                flash("Versão oficial do período eleitoral ativada na home.", "success")
+            return redirect(url_for("main.admin", key=admin_password))
+
         file = request.files.get("image")
         title = request.form.get("title", "").strip()
         if not file or file.filename == "":
@@ -332,6 +377,7 @@ def admin():
         supporters=supporters,
         social_supporters=social_supporters,
         gallery=gallery,
+        pre_campaign_home_enabled=is_pre_campaign_home_enabled(),
         **campaign_context(),
     )
 

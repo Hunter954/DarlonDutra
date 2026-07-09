@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=social-marquee-02">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=pre-home-01">
 </head>
 <body>
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -22,6 +22,6 @@
     {% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
-  <script src="{{ url_for('static', filename='js/main.js') }}?v=social-marquee-02"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}?v=pre-home-01"></script>
 </body>
 </html>

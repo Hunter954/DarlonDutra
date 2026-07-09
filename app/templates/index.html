@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
+{% if pre_campaign_home_enabled %}
+<main id="top" class="pre-home">
+  <section class="pre-hero" aria-label="Pré-campanha {{ candidate_name }}">
+    <div class="pre-hero-bg"></div>
+    <div class="pre-hero-person reveal-person">
+      <img src="{{ url_for('static', filename='assets/DARLON-perfil.png') }}" alt="{{ candidate_name }}">
+    </div>
+    <div class="pre-hero-copy reveal">
+      <p>PRÉ CANDIDATO A DEPUTADO FEDERAL</p>
+      <h1><span>{{ candidate_first_name }}</span><strong>{{ candidate_last_name }}</strong></h1>
+    </div>
+  </section>
+</main>
+{% else %}
 <header class="site-header">
   <a class="brand" href="#top" aria-label="Início">
     <img src="{{ url_for('static', filename='assets/PARTIDO.png') }}" alt="Partido Missão">
@@ -160,4 +174,5 @@
   <p>{{ candidate_name }} {{ campaign_number }} • {{ legal_notice }}</p>
   <p>CNPJ DO CANDIDATO: {{ campaign_cnpj }}</p>
 </footer>
+{% endif %}
 {% endblock %}
